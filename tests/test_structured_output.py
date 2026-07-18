@@ -227,11 +227,13 @@ class StructuredOutputTests(unittest.TestCase):
         self.assertEqual(hydrated.page_number, 1)
         self.assertEqual(hydrated.content_origin, "paper")
         self.assertEqual(report.claims[0].inference_origin, "model_inference")
+        self.assertEqual(report.schema_version, "1.1")
 
     def test_bundled_sample_output_matches_report_schema(self) -> None:
         report = load_sample_report()
 
         self.assertTrue(report.sample_data)
+        self.assertEqual(report.schema_version, "1.1")
         self.assertEqual(report.model, "gpt-5.6")
         self.assertGreaterEqual(len(report.claims), 3)
 

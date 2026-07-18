@@ -12,6 +12,12 @@ from dotenv import load_dotenv
 
 from claimtrace.analyzer import AnalysisConfig, analyze_document
 from claimtrace.exceptions import ClaimTraceError
+from claimtrace.model_catalog import (
+    DEFAULT_MODEL,
+    MODEL_BY_ID,
+    MODEL_OPTIONS,
+    get_model_option,
+)
 from claimtrace.models import (
     ClaimRecord,
     ClaimTraceReport,
@@ -85,6 +91,17 @@ def _float_setting(name: str, default: float) -> float:
         return default
 
 
+def _default_model_setting() -> tuple[str, bool]:
+    """Return the allowlisted deployment default and whether it was valid."""
+
+    configured = os.getenv("CLAIMTRACE_DEFAULT_MODEL", "").strip()
+    if not configured:
+        return DEFAULT_MODEL, True
+    if configured in MODEL_BY_ID:
+        return configured, True
+    return DEFAULT_MODEL, False
+
+
 def _streamlit_session_identifier() -> str:
     """Return a random token stable only for the current Streamlit session."""
 
@@ -121,6 +138,29 @@ def _inject_styles() -> None:
         .ct-kicker { color: #0f766e; font-size: .78rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
         .ct-title { color: #15324a; font-size: clamp(2.25rem, 5vw, 4.35rem); font-weight: 780; letter-spacing: -.055em; line-height: .98; margin: .5rem 0 .8rem; }
         .ct-subtitle { color: #526575; font-size: 1.05rem; max-width: 760px; line-height: 1.65; margin: 0; }
+        .ct-hero-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.25rem; }
+        .ct-hero-tag {
+          color: #155e75; background: rgba(236, 254, 255, .88); border: 1px solid #bae6fd;
+          border-radius: 999px; padding: .38rem .7rem; font-size: .75rem; font-weight: 750;
+        }
+        .ct-proof-grid {
+          display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .9rem;
+          margin: 0 0 .95rem;
+        }
+        .ct-proof-card {
+          min-height: 155px; padding: 1.2rem; border-radius: 17px; background: #fff;
+          border: 1px solid #dce7e6; box-shadow: 0 10px 28px rgba(21, 50, 74, .05);
+        }
+        .ct-proof-number { color: #0f766e; font-size: .7rem; font-weight: 850; letter-spacing: .12em; }
+        .ct-proof-title { color: #15324a; font-size: 1rem; font-weight: 800; margin: .55rem 0 .35rem; }
+        .ct-proof-copy { color: #60717e; font-size: .86rem; line-height: 1.55; }
+        .ct-protocol {
+          display: flex; align-items: center; justify-content: center; gap: .8rem; flex-wrap: wrap;
+          padding: .9rem 1rem; margin-bottom: 1.45rem; border-radius: 14px;
+          color: #244158; background: #eef7f5; border: 1px solid #d4e8e3;
+          font-size: .82rem; font-weight: 750;
+        }
+        .ct-protocol-arrow { color: #0f766e; font-weight: 900; }
         .ct-badge {
           display: inline-block; padding: .24rem .62rem; border-radius: 999px;
           font-size: .72rem; font-weight: 800; letter-spacing: .02em; margin-right: .35rem;
@@ -141,6 +181,12 @@ def _inject_styles() -> None:
         [data-testid="stMetric"] { background: rgba(255,255,255,.78); border: 1px solid #e1e9eb; padding: .8rem 1rem; border-radius: 14px; }
         [data-testid="stFileUploader"] { border: 1px dashed #9dbab5; border-radius: 16px; padding: .35rem; background: rgba(255,255,255,.62); }
         div[data-testid="stExpander"] { border-color: #dbe5e7; border-radius: 14px; background: rgba(255,255,255,.72); }
+        [data-testid="stCode"] pre,
+        [data-testid="stCode"] code { white-space: pre-wrap !important; overflow-wrap: anywhere; }
+        @media (max-width: 760px) {
+          .ct-proof-grid { grid-template-columns: 1fr; }
+          .ct-proof-card { min-height: auto; }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -166,14 +212,30 @@ def _render_source(
 ) -> None:
     with st.expander(_source_title(source), expanded=expanded):
         st.markdown(
-            _badge("Paper content", "ct-paper-tag")
+            _badge("Linked paper passage", "ct-paper-tag")
             + f" <span style='color:#64748b;font-size:.8rem'>Section: {html.escape(source.section)}</span>",
             unsafe_allow_html=True,
         )
+        before = [item for item in source.nearby_context if item.position == "before"]
+        after = [item for item in source.nearby_context if item.position == "after"]
+        if before:
+            st.caption(
+                f"Immediately before · {before[0].section} · {before[0].source_id}"
+            )
+            st.code(before[0].excerpt, language=None)
+        st.caption("Passage used for this claim or assessment")
         # st.code prevents paper text from being interpreted as Markdown or HTML.
         st.code(source.excerpt, language=None)
+        if after:
+            st.caption(f"Immediately after · {after[0].section} · {after[0].source_id}")
+            st.code(after[0].excerpt, language=None)
+        if source.nearby_context:
+            st.caption(
+                "Nearby text is shown for reading context. It is not counted as linked "
+                "evidence unless it appears separately in the evidence list."
+            )
         if inference or caveat:
-            badges = _badge("Model inference", "ct-model-tag")
+            badges = _badge("Interpretation", "ct-model-tag")
             if relationship is not None:
                 badges += _badge(
                     RELATIONSHIP_LABELS[relationship], RELATIONSHIP_CLASSES[relationship]
@@ -191,18 +253,18 @@ def _render_issue(issue: IssueFlag) -> None:
         st.markdown(
             f"**{severity_color} {ISSUE_LABELS[issue.category]}** · {issue.severity.value.title()} severity"
         )
-        st.markdown(_badge("Model inference", "ct-model-tag"), unsafe_allow_html=True)
+        st.markdown(_badge("Interpretation", "ct-model-tag"), unsafe_allow_html=True)
         st.write(issue.description)
         st.caption(f"Why it matters: {issue.why_it_matters}")
-        st.markdown(f"**Suggested check:** {issue.recommendation}")
+        st.markdown(f"**What to check next:** {issue.recommendation}")
         if issue.sources:
             st.caption("Paper spans relevant to this inference")
             for source in issue.sources:
                 _render_source(source)
         else:
             st.caption(
-                "Absence-based flag: no unrelated paper span is cited as proof. "
-                "Interpret this as ‘not reported in the analyzed paper.’"
+                "No source is linked because this is a reporting gap. Unrelated text is "
+                "not used as proof that something did not happen."
             )
 
 
@@ -214,7 +276,7 @@ def _render_claim(claim: ClaimRecord, *, expanded: bool = False) -> None:
         st.markdown(f"### {claim.claim_id} · {html.escape(label)}")
         st.markdown(
             _badge(label, RELATIONSHIP_CLASSES[claim.overall_relationship])
-            + _badge("AI-extracted claim", "ct-model-tag"),
+            + _badge("Scoped claim restatement", "ct-model-tag"),
             unsafe_allow_html=True,
         )
         st.markdown(
@@ -224,27 +286,31 @@ def _render_claim(claim: ClaimRecord, *, expanded: bool = False) -> None:
         metadata_cols = st.columns(3)
         metadata_cols[0].caption(f"Claim type · {claim.claim_type.value.replace('_', ' ').title()}")
         metadata_cols[1].caption(f"Importance · {claim.importance.value.title()}")
-        metadata_cols[2].caption(f"Model confidence · {claim.confidence_score:.0%}")
-        st.caption(f"Stated scope: {claim.scope_qualifier}")
+        metadata_cols[2].caption(f"Assessment confidence · {claim.confidence_score:.0%}")
+        st.markdown(f"**Context and scope:** {claim.scope_qualifier}")
 
         assessment_tab, evidence_tab, risks_tab = st.tabs(
-            ["Assessment", f"Evidence ({len(claim.evidence)})", f"Flags ({len(claim.issues)})"]
+            [
+                "Why this rating",
+                f"Paper evidence ({len(claim.evidence)})",
+                f"Checks to consider ({len(claim.issues)})",
+            ]
         )
 
         with assessment_tab:
-            st.markdown(_badge("Model inference", "ct-model-tag"), unsafe_allow_html=True)
+            st.markdown(_badge("Interpretation", "ct-model-tag"), unsafe_allow_html=True)
             st.write(claim.model_assessment)
             if claim.alternative_interpretation:
-                st.info(f"Alternative interpretation: {claim.alternative_interpretation}")
-            st.markdown("**Where the authors state the claim**")
+                st.info(f"What else could explain this: {claim.alternative_interpretation}")
+            st.markdown("**Where the authors make this claim**")
             for source in claim.claim_sources:
                 _render_source(source)
 
         with evidence_tab:
             if not claim.evidence:
                 st.warning(
-                    "No supporting paper source was linked. The unsupported label is model "
-                    "inference; ClaimTrace does not create a citation to fill the gap."
+                    "No paper passage was linked as support. ClaimTrace does not create a "
+                    "citation to fill that gap."
                 )
             for index, evidence in enumerate(claim.evidence):
                 _render_source(
@@ -257,7 +323,7 @@ def _render_claim(claim: ClaimRecord, *, expanded: bool = False) -> None:
 
         with risks_tab:
             if not claim.issues:
-                st.success("No specific claim-level issue was flagged.")
+                st.success("No specific claim-level check was triggered.")
             for issue in claim.issues:
                 _render_issue(issue)
 
@@ -300,9 +366,9 @@ def _render_report(report: ClaimTraceReport) -> None:
         )
 
     st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="ct-eyebrow">Interactive claim–evidence report</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ct-eyebrow">Claim-by-claim evidence review</div>', unsafe_allow_html=True)
     st.header(report.paper_title)
-    st.markdown(_badge("AI-extracted title", "ct-model-tag"), unsafe_allow_html=True)
+    st.markdown(_badge("Title linked to paper", "ct-paper-tag"), unsafe_allow_html=True)
     st.caption(
         f"{report.document_name} · {report.page_count} pages · "
         f"{report.source_unit_count} indexed source spans · model {report.model}"
@@ -311,7 +377,7 @@ def _render_report(report: ClaimTraceReport) -> None:
         with st.expander("Inspect title provenance"):
             for source in report.paper_title_sources:
                 st.caption(_source_title(source))
-                st.markdown(_badge("Paper content", "ct-paper-tag"), unsafe_allow_html=True)
+                st.markdown(_badge("Paper text", "ct-paper-tag"), unsafe_allow_html=True)
                 st.code(source.excerpt, language=None)
 
     total_claims = len(report.claims)
@@ -364,7 +430,7 @@ def _render_report(report: ClaimTraceReport) -> None:
         visible_claims.append(claim)
 
     claims_tab, map_tab, audit_tab, json_tab = st.tabs(
-        ["Claims", "Evidence map", "Paper-level audit", "Structured JSON"]
+        ["Claim review", "Evidence map", "Checks & limitations", "Structured JSON"]
     )
 
     with claims_tab:
@@ -376,7 +442,7 @@ def _render_report(report: ClaimTraceReport) -> None:
     with map_tab:
         st.caption(
             "All page numbers and excerpts in this table come from local PDF parsing. "
-            "Relationship labels come from GPT-5.6."
+            f"Relationship ratings were produced with {report.model}."
         )
         rows = _evidence_rows(report)
         if rows:
@@ -385,13 +451,13 @@ def _render_report(report: ClaimTraceReport) -> None:
             st.info("No source links are available.")
 
     with audit_tab:
-        st.markdown(_badge("Model inference", "ct-model-tag"), unsafe_allow_html=True)
+        st.markdown(_badge("Interpretation", "ct-model-tag"), unsafe_allow_html=True)
         if report.paper_level_issues:
-            st.subheader("Paper-level flags")
+            st.subheader("Paper-level checks")
             for issue in report.paper_level_issues:
                 _render_issue(issue)
         else:
-            st.success("No paper-level issue was specifically flagged.")
+            st.success("No specific paper-level check was triggered.")
 
         if report.global_limitations:
             st.subheader("Analysis limitations")
@@ -429,24 +495,85 @@ def main() -> None:
     st.markdown(
         """
         <section class="ct-hero">
-          <div class="ct-kicker">Biomedical claim provenance</div>
-          <div class="ct-title">ClaimTrace</div>
+          <div class="ct-kicker">Claim-by-claim paper review</div>
+          <div class="ct-title">Read the claim. Check the evidence.</div>
           <p class="ct-subtitle">
-            Turn a research paper into an auditable map of claims, supporting passages,
-            figures, tables, methods, statistics, and evidence gaps — with every paper
-            excerpt anchored to its original PDF page.
+            ClaimTrace breaks a searchable paper into its major claims. For each one,
+            it shows where the authors state it, which reported results bear on it,
+            why the evidence is rated direct, indirect, partial, or unsupported, and
+            what still needs checking.
           </p>
+          <div class="ct-hero-tags">
+            <span class="ct-hero-tag">Exact text from the PDF</span>
+            <span class="ct-hero-tag">Nearby page context</span>
+            <span class="ct-hero-tag">Unverifiable links are rejected</span>
+          </div>
         </section>
+        <section class="ct-proof-grid">
+          <div class="ct-proof-card">
+            <div class="ct-proof-number">01 · THE CLAIM</div>
+            <div class="ct-proof-title">What exactly is being claimed?</div>
+            <div class="ct-proof-copy">The restatement keeps the tested population or model, intervention or exposure, comparator, endpoint, direction, and stated boundary.</div>
+          </div>
+          <div class="ct-proof-card">
+            <div class="ct-proof-number">02 · THE PAPER</div>
+            <div class="ct-proof-title">What in the paper bears on it?</div>
+            <div class="ct-proof-copy">The linked passage, page, section, and immediately adjacent same-page text are shown together so the result is not read in isolation.</div>
+          </div>
+          <div class="ct-proof-card">
+            <div class="ct-proof-number">03 · THE REASONING</div>
+            <div class="ct-proof-title">Why does the evidence earn this rating?</div>
+            <div class="ct-proof-copy">The explanation names what matches, what does not, the most important limit on interpretation, and a concrete next check.</div>
+          </div>
+        </section>
+        <div class="ct-protocol">
+          <span>Parse the PDF locally</span><span class="ct-protocol-arrow">→</span>
+          <span>Identify relevant source IDs</span><span class="ct-protocol-arrow">→</span>
+          <span>Restore exact paper text</span><span class="ct-protocol-arrow">→</span>
+          <span>Explain the rating and its limits</span>
+        </div>
         """,
         unsafe_allow_html=True,
     )
 
+    with st.expander("Why evidence and interpretation are kept separate"):
+        st.markdown(
+            """
+            **Paper text is a record, so application code owns it.** Quotes, page
+            numbers, sections, and nearby context are recovered from the uploaded PDF.
+
+            **Evidence ratings are judgments, so their reasoning stays visible.** A
+            `direct`, `indirect`, or `partial` label is useful only when the report
+            explains which part of the claim matches the experiment and which boundary
+            prevents a stronger conclusion.
+
+            **Validation sits between the two.** If an analysis references a source that
+            is absent from the PDF index—or combines a rating and evidence list that do
+            not make sense—the report is rejected instead of quietly repaired.
+            """
+        )
+
     with st.sidebar:
         st.markdown("## ClaimTrace")
-        st.caption("Trace the claim. Inspect the evidence.")
+        st.caption("A structured reading aid for biomedical papers.")
         st.divider()
-        st.markdown("**Analysis engine**")
-        st.code("gpt-5.6", language=None)
+        st.markdown("**Analysis settings**")
+        default_model, valid_default_model = _default_model_setting()
+        if not valid_default_model:
+            st.warning(
+                "CLAIMTRACE_DEFAULT_MODEL is not allowlisted; using GPT-5.6 Sol."
+            )
+        selected_model = st.selectbox(
+            "OpenAI model",
+            options=[option.model_id for option in MODEL_OPTIONS],
+            index=[option.model_id for option in MODEL_OPTIONS].index(default_model),
+            format_func=lambda model_id: get_model_option(model_id).label,
+            help="Models are allowlisted in application code; arbitrary IDs are rejected.",
+        )
+        selected_model_option = get_model_option(selected_model)
+        st.caption(
+            f"**{selected_model_option.tier}.** {selected_model_option.description}"
+        )
         configured_key = _configured_secret("OPENAI_API_KEY")
         entered_key = st.text_input(
             "OpenAI API key",
@@ -468,12 +595,12 @@ def main() -> None:
             help="Medium is the quality-oriented default for evidence auditing.",
         )
         st.divider()
-        st.markdown("**Built-in guardrails**")
+        st.markdown("**How evidence stays traceable**")
         st.caption(
-            "• Page-preserving local extraction\n\n"
-            "• Source-ID-only model citations\n\n"
-            "• Fail-closed provenance validation\n\n"
-            "• Paper text separated from model inference"
+            "• Quotes and page numbers come from local PDF parsing\n\n"
+            "• Linked passages include nearby same-page context\n\n"
+            "• Unknown or inconsistent source links reject the report\n\n"
+            "• Paper text stays separate from interpretation"
         )
 
     upload_col, action_col = st.columns([1.65, 1])
@@ -489,11 +616,12 @@ def main() -> None:
     with action_col:
         st.markdown("#### Run")
         analyze_clicked = st.button(
-            "Analyze with GPT-5.6",
+            f"Review with {selected_model_option.label}",
             type="primary",
             width="stretch",
         )
-        sample_clicked = st.button("Load synthetic sample", width="stretch")
+        sample_clicked = st.button("Try the 60-second evidence demo", width="stretch")
+        st.caption("Synthetic, no key, and no API call.")
         if "report" in st.session_state:
             if st.button("Clear current report", width="stretch"):
                 del st.session_state["report"]
@@ -538,6 +666,7 @@ def main() -> None:
                             seen_messages.add(message)
 
                     config = AnalysisConfig(
+                        model=selected_model,
                         reasoning_effort=reasoning_effort,
                         max_claims=max_claims,
                         max_paper_characters=_integer_setting(

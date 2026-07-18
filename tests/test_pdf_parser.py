@@ -74,6 +74,25 @@ class PDFParserTests(unittest.TestCase):
         self.assertIn(f"page={first.page_number}", packet)
         self.assertIn(first.excerpt, packet)
 
+    def test_attaches_immediate_same_page_context_without_crossing_pages(self) -> None:
+        parsed = parse_pdf(_make_searchable_pdf())
+        result = next(
+            source for source in parsed.sources if "Treatment reduced" in source.excerpt
+        )
+        methods_heading = next(
+            source
+            for source in parsed.sources
+            if source.page_number == 2 and source.excerpt == "Methods"
+        )
+
+        self.assertEqual(len(result.nearby_context), 1)
+        self.assertEqual(result.nearby_context[0].position, "before")
+        self.assertEqual(result.nearby_context[0].excerpt, "Abstract")
+        self.assertEqual(result.nearby_context[0].page_number, result.page_number)
+        self.assertFalse(
+            any(item.page_number != methods_heading.page_number for item in methods_heading.nearby_context)
+        )
+
     def test_rejects_non_pdf_bytes(self) -> None:
         with self.assertRaises(PDFParsingError):
             parse_pdf(b"not a pdf")
@@ -90,4 +109,3 @@ class PDFParserTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

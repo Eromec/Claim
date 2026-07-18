@@ -1,4 +1,4 @@
-"""Pydantic contracts used by PDF parsing, GPT-5.6, and the UI.
+"""Pydantic contracts used by PDF parsing, structured analysis, and the UI.
 
 The classes prefixed with ``Model`` or named ``*Output`` are deliberately
 simple because they are used as Structured Output schemas.  Importantly, the
@@ -67,6 +67,18 @@ class Severity(str, Enum):
     HIGH = "high"
 
 
+class NearbyContext(StrictModel):
+    """A neighboring local PDF span shown only for reading orientation."""
+
+    source_id: str
+    page_number: int
+    kind: SourceKind
+    section: str
+    excerpt: str
+    position: Literal["before", "after"]
+    content_origin: Literal["paper"] = "paper"
+
+
 class SourceUnit(StrictModel):
     """A locally extracted, immutable span of paper content."""
 
@@ -78,6 +90,7 @@ class SourceUnit(StrictModel):
     label: str
     excerpt: str
     bbox: list[float]
+    nearby_context: list[NearbyContext] = Field(default_factory=list)
     content_origin: Literal["paper"] = "paper"
 
     @field_validator("source_id", "excerpt")
@@ -130,7 +143,7 @@ class PaperDocument(StrictModel):
 
 
 # ---------------------------------------------------------------------------
-# GPT-5.6 Structured Output schemas
+# Structured Output schemas
 # ---------------------------------------------------------------------------
 
 
@@ -143,7 +156,10 @@ class ClaimCandidate(StrictModel):
         description="IDs of paper spans where the authors state this claim"
     )
     scope_qualifier: str = Field(
-        description="Population, model system, intervention, endpoint, or other stated scope"
+        description=(
+            "Concrete tested context: population or model system, intervention or exposure, "
+            "comparator, endpoint, timeframe, and material boundary when reported"
+        )
     )
 
     @model_validator(mode="after")
@@ -180,10 +196,16 @@ class ModelEvidenceLink(StrictModel):
     source_id: str
     relationship: Relationship
     supports_or_limits: str = Field(
-        description="What this exact paper span supports or limits"
+        description=(
+            "Plain-language rationale naming the claim component, what this exact span "
+            "establishes, and why the relationship label fits"
+        )
     )
     caveat: str = Field(
-        description="Important qualification; use an empty string if none"
+        description=(
+            "The most decision-relevant boundary on interpretation; use an empty string "
+            "only when the linked span adds no material qualification"
+        )
     )
 
 
@@ -204,8 +226,18 @@ class ModelClaimAssessment(StrictModel):
     confidence_score: float = Field(
         description="Calibration score from 0.0 to 1.0, not a statistical probability"
     )
-    assessment_summary: str
-    alternative_interpretation: str
+    assessment_summary: str = Field(
+        description=(
+            "Two to four plain-language sentences explaining the rating from the tested "
+            "context, comparator, endpoint, direction, and most important limitation"
+        )
+    )
+    alternative_interpretation: str = Field(
+        description=(
+            "A specific plausible interpretation that would change how the result is read; "
+            "use an empty string when none is supported by the analyzed paper"
+        )
+    )
     evidence: list[ModelEvidenceLink]
     issues: list[ModelIssue]
 
@@ -263,7 +295,7 @@ class ClaimRecord(StrictModel):
 
 
 class ClaimTraceReport(StrictModel):
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.0", "1.1"] = "1.1"
     generated_at: datetime
     model: str
     document_name: str

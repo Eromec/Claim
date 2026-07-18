@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "generated_at": "2026-07-16T12:00:00Z",
   "model": "gpt-5.6",
   "document_name": "synthetic_cx101_study.pdf",
@@ -42,7 +42,7 @@
       ],
       "overall_relationship": "direct",
       "confidence_score": 0.94,
-      "model_assessment": "The randomized vehicle comparison and longitudinal tumor-volume analysis directly support the narrowly scoped xenograft claim.",
+      "model_assessment": "The claim is limited to tumor growth in the reported CX-101-sensitive mouse xenograft model. Animals were randomized to CX-101 or vehicle, and the prespecified tumor-volume endpoint was lower with CX-101 at day 21, so the tested system, comparator, endpoint, and direction all match the claim. The rating does not extend to survival, other tumor models, or patients.",
       "alternative_interpretation": "The observed effect may be specific to the selected CX-101-sensitive model and does not establish activity in other tumor models.",
       "evidence": [
         {
@@ -55,10 +55,30 @@
             "label": "Statistical result",
             "excerpt": "At day 21, mean tumor volume was 418 ± 96 mm3 in the CX-101 group and 812 ± 143 mm3 with vehicle (n = 10 per group; two-sided p = 0.003).",
             "bbox": [72.0, 164.0, 520.0, 218.0],
+            "nearby_context": [
+              {
+                "source_id": "p004-b001",
+                "page_number": 4,
+                "kind": "paragraph",
+                "section": "Results",
+                "excerpt": "Mice bearing established CX-101-sensitive xenografts were randomized to daily CX-101 or vehicle treatment, and tumor volume was measured for 21 days.",
+                "position": "before",
+                "content_origin": "paper"
+              },
+              {
+                "source_id": "p004-b003",
+                "page_number": 4,
+                "kind": "figure",
+                "section": "Results",
+                "excerpt": "Figure 2. CX-101 limits xenograft growth. Tumor volume over 21 days for vehicle and CX-101 groups; points show mean ± SEM.",
+                "position": "after",
+                "content_origin": "paper"
+              }
+            ],
             "content_origin": "paper"
           },
           "relationship": "direct",
-          "model_inference": "Reports the prespecified tumor-volume comparison against vehicle in the tested model.",
+          "model_inference": "This span tests the claim's central efficacy component: tumor volume in the named xenograft system. It compares CX-101 with vehicle at the reported day-21 endpoint and gives the same direction of effect as the claim, which makes the link direct rather than merely consistent.",
           "caveat": "One xenograft model and a short follow-up window are reported.",
           "inference_origin": "model_inference"
         },
@@ -75,7 +95,7 @@
             "content_origin": "paper"
           },
           "relationship": "direct",
-          "model_inference": "The extracted caption identifies the longitudinal tumor-growth comparison.",
+          "model_inference": "The caption identifies a longitudinal tumor-volume comparison between the same treatment and vehicle groups. It bears directly on the endpoint and direction in the claim, but it does not provide the plotted values needed to judge the size or variability of the effect.",
           "caveat": "Only caption text was analyzed; unseen panels, axes, and plotted values were not inferred.",
           "inference_origin": "model_inference"
         },
@@ -92,7 +112,7 @@
             "content_origin": "paper"
           },
           "relationship": "direct",
-          "model_inference": "Defines the intervention, comparator, randomization, masking, and measurement procedure relevant to the claim.",
+          "model_inference": "This methods span does not show efficacy by itself. It explains how the intervention, vehicle comparator, randomization, blinded measurement, and repeated tumor-volume endpoint were implemented, which makes the result easier to interpret and check for design bias.",
           "caveat": "The excerpt does not report allocation-concealment details.",
           "inference_origin": "model_inference"
         }
@@ -143,7 +163,7 @@
       ],
       "overall_relationship": "partial",
       "confidence_score": 0.86,
-      "model_assessment": "Immune-state changes are reported, but the evidence does not isolate myeloid reprogramming as the cause of tumor control.",
+      "model_assessment": "The paper reports treatment-associated changes in immune-cell composition in the same xenograft setting, so the observations are relevant to the proposed myeloid mechanism. However, immune state and tumor burden were measured together, without a myeloid-specific perturbation, depletion, or mediation analysis showing that the immune change was necessary for tumor control. The evidence therefore supports an association with the proposed mechanism, not the full causal wording of the claim.",
       "alternative_interpretation": "Immune changes could be downstream consequences of reduced tumor burden rather than the treatment's necessary mechanism.",
       "evidence": [
         {
@@ -159,7 +179,7 @@
             "content_origin": "paper"
           },
           "relationship": "partial",
-          "model_inference": "Shows treatment-associated immune-composition differences consistent with the proposed mechanism.",
+          "model_inference": "This span addresses the immune-state component of the claim by reporting fewer suppressive myeloid cells and more activated CD8 T cells after treatment. The direction is consistent with immune reprogramming, but the concurrent comparison does not establish that the myeloid change caused the tumor response, so the link is partial.",
           "caveat": "Association and concurrent measurement do not demonstrate that myeloid-cell change mediates tumor control.",
           "inference_origin": "model_inference"
         },
@@ -176,7 +196,7 @@
             "content_origin": "paper"
           },
           "relationship": "indirect",
-          "model_inference": "The table caption indicates immune phenotyping relevant to the proposed pathway.",
+          "model_inference": "The caption shows that immune phenotyping compared the treatment and vehicle groups and included the cell populations named in the proposed pathway. Because only caption text is available, it helps locate a relevant analysis but cannot establish mediation, timing, or necessity.",
           "caveat": "The caption alone does not establish mediation or necessity.",
           "inference_origin": "model_inference"
         }
@@ -236,7 +256,7 @@
       ],
       "overall_relationship": "unsupported",
       "confidence_score": 0.97,
-      "model_assessment": "No patient cohort, clinical endpoint, or animal survival endpoint is reported in the analyzed paper.",
+      "model_assessment": "The claim changes both the population and the endpoint: it moves from a mouse xenograft tumor-volume result to survival in patients. The analyzed paper reports neither a patient cohort nor a survival endpoint in animals or humans, so no paper span can support the claim as written. The reported evidence justifies a preclinical tumor-growth conclusion in one xenograft model, not a clinical-survival conclusion.",
       "alternative_interpretation": "The data support a preclinical tumor-growth effect in one xenograft model, not a clinical survival benefit.",
       "evidence": [],
       "issues": [

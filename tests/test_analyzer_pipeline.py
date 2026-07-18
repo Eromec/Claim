@@ -9,6 +9,7 @@ from claimtrace.analyzer import (
     _hash_safety_identifier,
     analyze_document,
 )
+from claimtrace.model_catalog import DEFAULT_MODEL, MODEL_OPTIONS
 from claimtrace.models import (
     ClaimAssessmentOutput,
     ClaimCandidate,
@@ -114,7 +115,9 @@ class AnalyzerPipelineTests(unittest.TestCase):
             )
 
         self.assertEqual(len(fake_client.responses.calls), 2)
-        self.assertTrue(all(call["model"] == "gpt-5.6" for call in fake_client.responses.calls))
+        self.assertTrue(
+            all(call["model"] == DEFAULT_MODEL for call in fake_client.responses.calls)
+        )
         self.assertTrue(all(call["store"] is False for call in fake_client.responses.calls))
         safety_identifiers = [
             str(call["safety_identifier"]) for call in fake_client.responses.calls
@@ -125,6 +128,32 @@ class AnalyzerPipelineTests(unittest.TestCase):
         self.assertEqual(report.claims[0].evidence[0].source.page_number, 1)
         self.assertIn("p = 0.02", report.claims[0].evidence[0].source.excerpt)
         self.assertEqual(progress[-1], ("Claim-evidence report ready", 1.0))
+
+    def test_routes_an_allowlisted_model_through_both_stages(self) -> None:
+        fake_client = _FakeClient()
+
+        with patch("claimtrace.analyzer._client", return_value=fake_client):
+            report = analyze_document(
+                document=_document(),
+                api_key="sk-test",
+                config=AnalysisConfig(model="gpt-5.6-terra", max_claims=5),
+            )
+
+        self.assertTrue(
+            all(call["model"] == "gpt-5.6-terra" for call in fake_client.responses.calls)
+        )
+        self.assertEqual(report.model, "gpt-5.6-terra")
+
+    def test_accepts_every_catalog_model_and_rejects_arbitrary_ids(self) -> None:
+        for option in MODEL_OPTIONS:
+            with self.subTest(model=option.model_id):
+                self.assertEqual(
+                    AnalysisConfig(model=option.model_id).model,
+                    option.model_id,
+                )
+
+        with self.assertRaises(ValueError):
+            AnalysisConfig(model="gpt-user-supplied")
 
     def test_hashes_supplied_session_identifier_deterministically(self) -> None:
         raw_identifier = "random-test-session-token"
