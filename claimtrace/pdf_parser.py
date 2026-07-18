@@ -9,7 +9,7 @@ from pathlib import Path
 import fitz  # PyMuPDF
 
 from .exceptions import PDFParsingError
-from .models import PaperDocument, SourceKind, SourceUnit
+from .models import NearbyContext, PaperDocument, SourceKind, SourceUnit
 
 
 _CAPTION_RE = re.compile(
@@ -100,6 +100,33 @@ def _classify_source(text: str, section: str) -> tuple[SourceKind, str]:
     return SourceKind.PARAGRAPH, "Paragraph"
 
 
+def _attach_nearby_context(sources: list[SourceUnit]) -> list[SourceUnit]:
+    """Attach immediate same-page neighbors without changing evidence links."""
+
+    enriched: list[SourceUnit] = []
+    for index, source in enumerate(sources):
+        context: list[NearbyContext] = []
+        candidates = ((index - 1, "before"), (index + 1, "after"))
+        for candidate_index, position in candidates:
+            if not 0 <= candidate_index < len(sources):
+                continue
+            candidate = sources[candidate_index]
+            if candidate.page_number != source.page_number:
+                continue
+            context.append(
+                NearbyContext(
+                    source_id=candidate.source_id,
+                    page_number=candidate.page_number,
+                    kind=candidate.kind,
+                    section=candidate.section,
+                    excerpt=candidate.excerpt,
+                    position=position,
+                )
+            )
+        enriched.append(source.model_copy(update={"nearby_context": context}))
+    return enriched
+
+
 def parse_pdf(pdf_bytes: bytes, filename: str = "paper.pdf") -> PaperDocument:
     """Parse a PDF into one-based, page-preserving source units.
 
@@ -180,7 +207,7 @@ def parse_pdf(pdf_bytes: bytes, filename: str = "paper.pdf") -> PaperDocument:
             filename=safe_name,
             sha256=hashlib.sha256(pdf_bytes).hexdigest(),
             page_count=document.page_count,
-            sources=sources,
+            sources=_attach_nearby_context(sources),
         )
     finally:
         document.close()

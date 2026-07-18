@@ -24,9 +24,26 @@ class AppUiTests(unittest.TestCase):
             self.assertFalse(app.exception)
             self.assertEqual(app.selectbox[0].value, "gpt-5.6-terra")
             self.assertIn(
-                "Analyze with GPT-5.6 Terra",
+                "Review with GPT-5.6 Terra",
                 [button.label for button in app.button],
             )
+
+    def test_sample_report_labels_nearby_context_as_orientation_only(self) -> None:
+        app = AppTest.from_file("app.py").run(timeout=20)
+        button_labels = [button.label for button in app.button]
+        sample_button = app.button[button_labels.index("Try the 60-second evidence demo")]
+
+        sample_button.click().run(timeout=20)
+
+        captions = [caption.value for caption in app.caption]
+        self.assertFalse(app.exception)
+        self.assertIn("Immediately before · Results · p004-b001", captions)
+        self.assertIn("Immediately after · Results · p004-b003", captions)
+        self.assertIn(
+            "Nearby text is shown for reading context. It is not counted as linked "
+            "evidence unless it appears separately in the evidence list.",
+            captions,
+        )
 
 
 if __name__ == "__main__":

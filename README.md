@@ -1,31 +1,32 @@
 # ClaimTrace
 
-**Most paper tools summarize. ClaimTrace makes every AI claim show its work.**
+**Read the claim, inspect the paper, and understand why the evidence earns its rating.**
 
-ClaimTrace turns a searchable biomedical paper into an interactive claim–evidence
-audit. It identifies major scientific claims, links each one to page-preserved
-paper spans, classifies the strength of the relationship, and flags interpretation
-and reproducibility risks.
+ClaimTrace is a structured reading aid for searchable biomedical papers. It reviews
+the paper claim by claim: where the authors state each claim, which reported results
+bear on it, why the relationship is rated `direct`, `indirect`, `partial`, or
+`unsupported`, and what remains unresolved.
 
 The central design rule is simple: **the analysis model never supplies the displayed
 paper excerpt or page number.** PyMuPDF extracts those locally, assigns immutable
 source IDs, and ClaimTrace accepts a model citation only if that ID resolves back
 to the uploaded paper.
 
-## Why it is different
+## Why the workflow is separated
 
-1. **Source-locked citations.** The model may return only opaque source IDs. Every
-   displayed quote, page number, and bounding box is restored from the local PDF
-   index—not copied from model prose.
-2. **Fail-closed trust boundary.** An unknown source ID or inconsistent relationship
-   rejects the report. ClaimTrace does not silently repair, hide, or invent evidence.
-3. **Audit, not summary.** Each claim is labeled `direct`, `indirect`, `partial`, or
-   `unsupported`, then checked for overclaiming, controls, causal language,
-   statistics, reproducibility, and generalizability.
+| Layer | What it owns | Why |
+| --- | --- | --- |
+| Local PDF parser | Exact passage, page, section, bounding box, and immediate same-page context | These are document records and should not depend on generated wording. |
+| Structured analysis | Scoped claim restatement, evidence relationship, explanation, caveat, and next check | These require semantic judgment, so the reasoning must remain visible and reviewable. |
+| Local validator | Source-ID existence and cross-field consistency | A fluent explanation is not accepted when its evidence link is missing or contradictory. |
+
+Nearby context is shown for reading orientation but is not counted as linked evidence
+unless it appears separately in the evidence list. This distinction prevents a
+neighboring paragraph from quietly being treated as support.
 
 ```text
-PDF parsed locally → model returns source IDs → app restores exact passages
-                                         ↘ invalid link → reject the report
+PDF parsed locally → source IDs selected → exact text and context restored
+                                   ↘ invalid or inconsistent link → reject
 ```
 
 > ClaimTrace is a research-reading aid, not peer review, clinical guidance, or a
@@ -35,6 +36,8 @@ PDF parsed locally → model returns source IDs → app restores exact passages
 
 - Accepts one searchable PDF through Streamlit.
 - Extracts text blocks with one-based PDF page numbers and bounding boxes.
+- Attaches the immediately preceding and following same-page blocks as clearly
+  labeled reading context, separate from linked evidence.
 - Heuristically labels paragraphs, figure captions, table text, methods, and
   statistical-result spans.
 - Uses the selected GPT-5.6 model to extract a configurable number of major claims.
@@ -46,7 +49,9 @@ PDF parsed locally → model returns source IDs → app restores exact passages
   parser did not create.
 - Rejects cross-field inconsistencies such as unsupported claims with evidence,
   supported claims without evidence, duplicate evidence links, or mismatched claim IDs.
-- Clearly labels paper content and model inference in both the UI and JSON.
+- Explains each rating through the tested context, comparator, endpoint, direction,
+  and most important limit rather than repeating the claim in generic language.
+- Clearly separates paper content from analytical judgment in both the UI and JSON.
 - Includes a zero-cost synthetic sample report for demos without an API key.
 - Exports the validated report as structured JSON.
 - Sends the same privacy-preserving, hashed session safety identifier with both API calls.
@@ -120,17 +125,18 @@ model stages. This keeps tests and other Python callers independent of Streamlit
 This follows OpenAI's [safety identifier guidance](https://developers.openai.com/api/docs/guides/safety-best-practices)
 for logged-out, session-based experiences.
 
-## Paper content vs. model inference
+## Paper content vs. analytical judgment
 
 | Report element | Origin | Trust rule |
 | --- | --- | --- |
 | Page number, source ID, excerpt, bounding box | Local PyMuPDF extraction | Must exist in uploaded PDF registry |
 | Figure/table label and section/type | Local extraction heuristic | Useful navigation label; inspect the paper |
-| Restated claim | GPT-5.6 inference | Always linked to author claim-location spans |
-| Direct/indirect/partial/unsupported label | GPT-5.6 inference | Analytical judgment, not paper content |
-| Evidence explanation and caveat | GPT-5.6 inference | Never presented as a quotation |
-| Issue flags and recommendations | GPT-5.6 inference | Absence is phrased as “not reported” |
-| Confidence score | GPT-5.6 calibration | Not a probability or paper statistic |
+| Nearby context | Local PyMuPDF extraction | Same page and adjacent extraction order; orientation only |
+| Restated claim | Structured analysis | Always linked to author claim-location spans |
+| Direct/indirect/partial/unsupported label | Structured analysis | Analytical judgment, not paper content |
+| Evidence explanation and caveat | Structured analysis | Must explain why the linked span fits the rating |
+| Checks and recommendations | Structured analysis | Absence is phrased as “not reported” |
+| Confidence score | Structured analysis | Not a probability or paper statistic |
 
 ### Relationship rubric
 
@@ -194,13 +200,14 @@ The same tests can be run with pytest:
 pytest -q
 ```
 
-Both runners currently discover the same 23 tests. Coverage has expanded beyond
+Both runners currently discover the same 25 tests. Coverage has expanded beyond
 the original 12-test baseline to include semantic consistency, privacy-preserving
 `safety_identifier` behavior, allowlisted model routing, and model-picker UI state.
 
 Coverage includes:
 
 - one-based page preservation and stable source IDs;
+- deterministic immediate same-page context without page-boundary leakage;
 - figure, table, method, and statistical-span classification;
 - rejection of non-PDF and image-only/no-OCR inputs;
 - Pydantic Structured Output validation;

@@ -238,10 +238,11 @@ def build_report(
         global_limitations=assessment.global_limitations,
         analysis_warnings=warnings,
         provenance_statement=(
-            "Page numbers and excerpts were extracted locally from the uploaded PDF. "
-            "GPT-5.6 returned only source IDs plus analytical judgments; every ID was "
-            "validated before local hydration. Relationship labels, issue flags, "
-            "summaries, confidence scores, and alternative interpretations are model inference."
+            "Page numbers, linked passages, and nearby context were extracted locally "
+            "from the uploaded PDF. The selected analysis returned source IDs rather "
+            "than quotations; every ID was validated before the paper text was restored. "
+            "Relationship ratings, explanations, checks, confidence scores, and "
+            "alternative interpretations are analytical judgments, not paper quotations."
         ),
         sample_data=sample_data,
     )
