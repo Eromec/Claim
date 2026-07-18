@@ -1,0 +1,298 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-07-16T12:00:00Z",
+  "model": "gpt-5.6",
+  "document_name": "synthetic_cx101_study.pdf",
+  "document_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "paper_title": "CX-101 suppresses xenograft growth and alters myeloid-cell state",
+  "paper_title_sources": [
+    {
+      "source_id": "p001-b001",
+      "page_number": 1,
+      "block_index": 1,
+      "kind": "paragraph",
+      "section": "Unspecified",
+      "label": "Paragraph",
+      "excerpt": "CX-101 suppresses xenograft growth and alters myeloid-cell state",
+      "bbox": [72.0, 74.0, 510.0, 102.0],
+      "content_origin": "paper"
+    }
+  ],
+  "page_count": 7,
+  "source_unit_count": 8,
+  "claims": [
+    {
+      "claim_id": "C1",
+      "statement": "CX-101 reduces tumor growth in the reported mouse xenograft model.",
+      "claim_type": "therapeutic",
+      "importance": "primary",
+      "scope_qualifier": "Subcutaneous CX-101-sensitive xenografts in mice; tumor-volume endpoint.",
+      "claim_sources": [
+        {
+          "source_id": "p001-b002",
+          "page_number": 1,
+          "block_index": 2,
+          "kind": "paragraph",
+          "section": "Abstract",
+          "label": "Paragraph",
+          "excerpt": "In CX-101-sensitive xenografts, daily treatment reduced tumor growth relative to vehicle and was associated with increased intratumoral CD8 T cells.",
+          "bbox": [72.0, 128.0, 520.0, 194.0],
+          "content_origin": "paper"
+        }
+      ],
+      "overall_relationship": "direct",
+      "confidence_score": 0.94,
+      "model_assessment": "The randomized vehicle comparison and longitudinal tumor-volume analysis directly support the narrowly scoped xenograft claim.",
+      "alternative_interpretation": "The observed effect may be specific to the selected CX-101-sensitive model and does not establish activity in other tumor models.",
+      "evidence": [
+        {
+          "source": {
+            "source_id": "p004-b002",
+            "page_number": 4,
+            "block_index": 2,
+            "kind": "statistical_result",
+            "section": "Results",
+            "label": "Statistical result",
+            "excerpt": "At day 21, mean tumor volume was 418 ± 96 mm3 in the CX-101 group and 812 ± 143 mm3 with vehicle (n = 10 per group; two-sided p = 0.003).",
+            "bbox": [72.0, 164.0, 520.0, 218.0],
+            "content_origin": "paper"
+          },
+          "relationship": "direct",
+          "model_inference": "Reports the prespecified tumor-volume comparison against vehicle in the tested model.",
+          "caveat": "One xenograft model and a short follow-up window are reported.",
+          "inference_origin": "model_inference"
+        },
+        {
+          "source": {
+            "source_id": "p004-b003",
+            "page_number": 4,
+            "block_index": 3,
+            "kind": "figure",
+            "section": "Results",
+            "label": "Figure 2",
+            "excerpt": "Figure 2. CX-101 limits xenograft growth. Tumor volume over 21 days for vehicle and CX-101 groups; points show mean ± SEM.",
+            "bbox": [72.0, 420.0, 520.0, 468.0],
+            "content_origin": "paper"
+          },
+          "relationship": "direct",
+          "model_inference": "The extracted caption identifies the longitudinal tumor-growth comparison.",
+          "caveat": "Only caption text was analyzed; unseen panels, axes, and plotted values were not inferred.",
+          "inference_origin": "model_inference"
+        },
+        {
+          "source": {
+            "source_id": "p006-b005",
+            "page_number": 6,
+            "block_index": 5,
+            "kind": "method",
+            "section": "Methods",
+            "label": "Methods",
+            "excerpt": "Mice bearing 100–150 mm3 tumors were randomized to vehicle or CX-101 (30 mg kg−1 once daily). Tumor dimensions were measured by a blinded technician three times weekly.",
+            "bbox": [72.0, 302.0, 520.0, 370.0],
+            "content_origin": "paper"
+          },
+          "relationship": "direct",
+          "model_inference": "Defines the intervention, comparator, randomization, masking, and measurement procedure relevant to the claim.",
+          "caveat": "The excerpt does not report allocation-concealment details.",
+          "inference_origin": "model_inference"
+        }
+      ],
+      "issues": [
+        {
+          "category": "generalizability",
+          "severity": "medium",
+          "description": "The therapeutic conclusion is supported only within one selected xenograft model.",
+          "why_it_matters": "Model-specific sensitivity can overestimate robustness across genetically diverse tumors.",
+          "sources": [
+            {
+              "source_id": "p006-b005",
+              "page_number": 6,
+              "block_index": 5,
+              "kind": "method",
+              "section": "Methods",
+              "label": "Methods",
+              "excerpt": "Mice bearing 100–150 mm3 tumors were randomized to vehicle or CX-101 (30 mg kg−1 once daily). Tumor dimensions were measured by a blinded technician three times weekly.",
+              "bbox": [72.0, 302.0, 520.0, 370.0],
+              "content_origin": "paper"
+            }
+          ],
+          "recommendation": "Replicate across additional models with distinct baseline sensitivities.",
+          "inference_origin": "model_inference"
+        }
+      ],
+      "inference_origin": "model_inference"
+    },
+    {
+      "claim_id": "C2",
+      "statement": "CX-101 restores antitumor immunity by reprogramming suppressive myeloid cells.",
+      "claim_type": "mechanistic",
+      "importance": "primary",
+      "scope_qualifier": "Mechanistic interpretation in the same xenograft model.",
+      "claim_sources": [
+        {
+          "source_id": "p001-b002",
+          "page_number": 1,
+          "block_index": 2,
+          "kind": "paragraph",
+          "section": "Abstract",
+          "label": "Paragraph",
+          "excerpt": "In CX-101-sensitive xenografts, daily treatment reduced tumor growth relative to vehicle and was associated with increased intratumoral CD8 T cells.",
+          "bbox": [72.0, 128.0, 520.0, 194.0],
+          "content_origin": "paper"
+        }
+      ],
+      "overall_relationship": "partial",
+      "confidence_score": 0.86,
+      "model_assessment": "Immune-state changes are reported, but the evidence does not isolate myeloid reprogramming as the cause of tumor control.",
+      "alternative_interpretation": "Immune changes could be downstream consequences of reduced tumor burden rather than the treatment's necessary mechanism.",
+      "evidence": [
+        {
+          "source": {
+            "source_id": "p005-b004",
+            "page_number": 5,
+            "block_index": 4,
+            "kind": "statistical_result",
+            "section": "Results",
+            "label": "Statistical result",
+            "excerpt": "CX-101-treated tumors contained a higher fraction of CD8 T cells and fewer Arg1-high myeloid cells than vehicle controls (n = 8 tumors per group; p = 0.02 and p = 0.04, respectively).",
+            "bbox": [72.0, 214.0, 520.0, 280.0],
+            "content_origin": "paper"
+          },
+          "relationship": "partial",
+          "model_inference": "Shows treatment-associated immune-composition differences consistent with the proposed mechanism.",
+          "caveat": "Association and concurrent measurement do not demonstrate that myeloid-cell change mediates tumor control.",
+          "inference_origin": "model_inference"
+        },
+        {
+          "source": {
+            "source_id": "p005-b005",
+            "page_number": 5,
+            "block_index": 5,
+            "kind": "table",
+            "section": "Results",
+            "label": "Table 1",
+            "excerpt": "Table 1. Flow-cytometry summary for vehicle and CX-101 tumors, including CD8 T-cell frequency and Arg1-high myeloid-cell frequency.",
+            "bbox": [72.0, 402.0, 520.0, 448.0],
+            "content_origin": "paper"
+          },
+          "relationship": "indirect",
+          "model_inference": "The table caption indicates immune phenotyping relevant to the proposed pathway.",
+          "caveat": "The caption alone does not establish mediation or necessity.",
+          "inference_origin": "model_inference"
+        }
+      ],
+      "issues": [
+        {
+          "category": "causal_overinterpretation",
+          "severity": "high",
+          "description": "The wording treats correlated immune-state changes as a demonstrated causal mechanism.",
+          "why_it_matters": "Without perturbing or depleting the proposed mediator, temporal association cannot establish necessity.",
+          "sources": [
+            {
+              "source_id": "p005-b004",
+              "page_number": 5,
+              "block_index": 4,
+              "kind": "statistical_result",
+              "section": "Results",
+              "label": "Statistical result",
+              "excerpt": "CX-101-treated tumors contained a higher fraction of CD8 T cells and fewer Arg1-high myeloid cells than vehicle controls (n = 8 tumors per group; p = 0.02 and p = 0.04, respectively).",
+              "bbox": [72.0, 214.0, 520.0, 280.0],
+              "content_origin": "paper"
+            }
+          ],
+          "recommendation": "Test mediation with myeloid-specific perturbation or depletion and time-resolved sampling.",
+          "inference_origin": "model_inference"
+        },
+        {
+          "category": "missing_control",
+          "severity": "medium",
+          "description": "A tumor-size-matched control is not reported in the analyzed paper.",
+          "why_it_matters": "It would help distinguish a primary immune effect from a secondary consequence of smaller tumors.",
+          "sources": [],
+          "recommendation": "Add a tumor-size-matched or early time-point comparison before tumor volumes diverge.",
+          "inference_origin": "model_inference"
+        }
+      ],
+      "inference_origin": "model_inference"
+    },
+    {
+      "claim_id": "C3",
+      "statement": "CX-101 may improve survival in patients with CX-101-sensitive tumors.",
+      "claim_type": "therapeutic",
+      "importance": "secondary",
+      "scope_qualifier": "Clinical extrapolation from a preclinical xenograft study.",
+      "claim_sources": [
+        {
+          "source_id": "p007-b003",
+          "page_number": 7,
+          "block_index": 3,
+          "kind": "paragraph",
+          "section": "Discussion",
+          "label": "Paragraph",
+          "excerpt": "These findings suggest that CX-101 could restore antitumor immunity and improve survival in patients with CX-101-sensitive tumors.",
+          "bbox": [72.0, 184.0, 520.0, 238.0],
+          "content_origin": "paper"
+        }
+      ],
+      "overall_relationship": "unsupported",
+      "confidence_score": 0.97,
+      "model_assessment": "No patient cohort, clinical endpoint, or animal survival endpoint is reported in the analyzed paper.",
+      "alternative_interpretation": "The data support a preclinical tumor-growth effect in one xenograft model, not a clinical survival benefit.",
+      "evidence": [],
+      "issues": [
+        {
+          "category": "overclaiming",
+          "severity": "high",
+          "description": "The discussion extrapolates from tumor volume in mice to survival in patients.",
+          "why_it_matters": "The population and endpoint both extend beyond the reported evidence.",
+          "sources": [
+            {
+              "source_id": "p007-b003",
+              "page_number": 7,
+              "block_index": 3,
+              "kind": "paragraph",
+              "section": "Discussion",
+              "label": "Paragraph",
+              "excerpt": "These findings suggest that CX-101 could restore antitumor immunity and improve survival in patients with CX-101-sensitive tumors.",
+              "bbox": [72.0, 184.0, 520.0, 238.0],
+              "content_origin": "paper"
+            }
+          ],
+          "recommendation": "Limit the conclusion to the tested xenograft model and tumor-growth endpoint.",
+          "inference_origin": "model_inference"
+        },
+        {
+          "category": "generalizability",
+          "severity": "high",
+          "description": "Clinical generalizability is not established by the reported preclinical design.",
+          "why_it_matters": "Human pharmacology, safety, tumor heterogeneity, and clinical endpoints were not evaluated.",
+          "sources": [],
+          "recommendation": "Present the patient-survival statement as a hypothesis requiring clinical testing.",
+          "inference_origin": "model_inference"
+        }
+      ],
+      "inference_origin": "model_inference"
+    }
+  ],
+  "paper_level_issues": [
+    {
+      "category": "reproducibility",
+      "severity": "medium",
+      "description": "A preregistered analysis plan and independent replication are not reported in the analyzed paper.",
+      "why_it_matters": "Confirmatory status and robustness across laboratories cannot be evaluated from the paper.",
+      "sources": [],
+      "recommendation": "Provide a protocol, analysis plan, code, and an independent replication dataset.",
+      "inference_origin": "model_inference"
+    }
+  ],
+  "global_limitations": [
+    "This is a synthetic demonstration report, not an analysis of a real publication.",
+    "Figure and table judgments are limited to their extracted captions and text.",
+    "Absence in extracted text means not reported in the analyzed paper, not necessarily not performed."
+  ],
+  "analysis_warnings": [
+    "Synthetic sample: all paper excerpts and results were created solely to demonstrate the interface."
+  ],
+  "provenance_statement": "Page numbers and excerpts are labeled as synthetic paper content in this demo. Relationship labels, issue flags, summaries, confidence scores, and alternative interpretations are model inference.",
+  "sample_data": true
+}
