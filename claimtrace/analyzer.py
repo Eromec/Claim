@@ -1,4 +1,4 @@
-"""GPT-5.6 analysis pipeline using the Responses API and Structured Outputs."""
+"""Multi-model GPT-5.6 analysis using Responses and Structured Outputs."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from typing import Callable, TypeVar
 from pydantic import BaseModel
 
 from .exceptions import AnalysisError, DocumentTooLargeError
+from .model_catalog import DEFAULT_MODEL, get_model_option
 from .models import (
     ClaimAssessmentOutput,
     ClaimExtractionOutput,
@@ -40,7 +41,7 @@ def _hash_safety_identifier(session_identifier: str | None = None) -> str:
 
 @dataclass(frozen=True)
 class AnalysisConfig:
-    model: str = "gpt-5.6"
+    model: str = DEFAULT_MODEL
     reasoning_effort: str = "medium"
     max_claims: int = 8
     max_paper_characters: int = 500_000
@@ -48,8 +49,7 @@ class AnalysisConfig:
     max_output_tokens: int = 20_000
 
     def __post_init__(self) -> None:
-        if self.model != "gpt-5.6":
-            raise ValueError("ClaimTrace MVP is intentionally pinned to gpt-5.6")
+        get_model_option(self.model)
         if self.reasoning_effort not in {"none", "low", "medium", "high"}:
             raise ValueError("unsupported reasoning effort")
         if not 1 <= self.max_claims <= 20:
@@ -82,6 +82,8 @@ def _parse_response(
 ) -> SchemaT:
     """Call Responses.parse and turn API failures into stable domain errors."""
 
+    model_label = get_model_option(config.model).label
+
     try:
         response = client.responses.parse(
             model=config.model,
@@ -97,13 +99,19 @@ def _parse_response(
         name = type(exc).__name__
         safe_messages = {
             "AuthenticationError": "OpenAI authentication failed. Check your API key and project access.",
-            "PermissionDeniedError": "This API project does not have access to GPT-5.6.",
+            "PermissionDeniedError": (
+                f"This API project does not have access to {model_label}. "
+                "Choose another model or check the project model permissions."
+            ),
             "RateLimitError": "The OpenAI API rate limit was reached. Wait briefly and retry.",
-            "APITimeoutError": "The GPT-5.6 request timed out. Retry or use a shorter searchable PDF.",
+            "APITimeoutError": (
+                f"The {model_label} request timed out. Retry, choose a faster model, "
+                "or use a shorter searchable PDF."
+            ),
             "APIConnectionError": "ClaimTrace could not connect to the OpenAI API.",
             "BadRequestError": "The OpenAI API rejected the request. Check the paper size and model access.",
         }
-        message = safe_messages.get(name, f"GPT-5.6 analysis failed ({name}).")
+        message = safe_messages.get(name, f"{model_label} analysis failed ({name}).")
         raise AnalysisError(message) from exc
 
     parsed = getattr(response, "output_parsed", None)
@@ -112,7 +120,8 @@ def _parse_response(
         incomplete = getattr(response, "incomplete_details", None)
         detail = getattr(incomplete, "reason", "no structured output") if incomplete else "no structured output"
         raise AnalysisError(
-            f"GPT-5.6 returned no validated structured output (status={status}, reason={detail})."
+            f"{model_label} returned no validated structured output "
+            f"(status={status}, reason={detail})."
         )
     if not isinstance(parsed, schema):
         # This is defensive: current SDK helpers already instantiate the schema.
@@ -133,6 +142,7 @@ def analyze_document(
     """Run claim extraction, evidence assessment, and fail-closed hydration."""
 
     config = config or AnalysisConfig()
+    model_option = get_model_option(config.model)
     if not api_key.strip():
         raise AnalysisError("An OpenAI API key is required for live analysis.")
 
@@ -148,7 +158,7 @@ def analyze_document(
     client = _client(api_key, config)
     safety_identifier = _hash_safety_identifier(session_identifier)
 
-    notify("Extracting major claims with GPT-5.6", 0.15)
+    notify(f"Extracting major claims with {model_option.label}", 0.15)
     extraction_input = f"""
 <task_config>
 maximum_claims={config.max_claims}
@@ -170,7 +180,8 @@ page_count={document.page_count}
     )
     if len(extraction.claims) > config.max_claims:
         raise AnalysisError(
-            "GPT-5.6 returned more claims than the configured maximum; the report was rejected."
+            f"{model_option.label} returned more claims than the configured maximum; "
+            "the report was rejected."
         )
     validate_model_references(document, extraction)
 

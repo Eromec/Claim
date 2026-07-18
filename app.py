@@ -12,6 +12,12 @@ from dotenv import load_dotenv
 
 from claimtrace.analyzer import AnalysisConfig, analyze_document
 from claimtrace.exceptions import ClaimTraceError
+from claimtrace.model_catalog import (
+    DEFAULT_MODEL,
+    MODEL_BY_ID,
+    MODEL_OPTIONS,
+    get_model_option,
+)
 from claimtrace.models import (
     ClaimRecord,
     ClaimTraceReport,
@@ -85,6 +91,17 @@ def _float_setting(name: str, default: float) -> float:
         return default
 
 
+def _default_model_setting() -> tuple[str, bool]:
+    """Return the allowlisted deployment default and whether it was valid."""
+
+    configured = os.getenv("CLAIMTRACE_DEFAULT_MODEL", "").strip()
+    if not configured:
+        return DEFAULT_MODEL, True
+    if configured in MODEL_BY_ID:
+        return configured, True
+    return DEFAULT_MODEL, False
+
+
 def _streamlit_session_identifier() -> str:
     """Return a random token stable only for the current Streamlit session."""
 
@@ -121,6 +138,29 @@ def _inject_styles() -> None:
         .ct-kicker { color: #0f766e; font-size: .78rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
         .ct-title { color: #15324a; font-size: clamp(2.25rem, 5vw, 4.35rem); font-weight: 780; letter-spacing: -.055em; line-height: .98; margin: .5rem 0 .8rem; }
         .ct-subtitle { color: #526575; font-size: 1.05rem; max-width: 760px; line-height: 1.65; margin: 0; }
+        .ct-hero-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.25rem; }
+        .ct-hero-tag {
+          color: #155e75; background: rgba(236, 254, 255, .88); border: 1px solid #bae6fd;
+          border-radius: 999px; padding: .38rem .7rem; font-size: .75rem; font-weight: 750;
+        }
+        .ct-proof-grid {
+          display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .9rem;
+          margin: 0 0 .95rem;
+        }
+        .ct-proof-card {
+          min-height: 155px; padding: 1.2rem; border-radius: 17px; background: #fff;
+          border: 1px solid #dce7e6; box-shadow: 0 10px 28px rgba(21, 50, 74, .05);
+        }
+        .ct-proof-number { color: #0f766e; font-size: .7rem; font-weight: 850; letter-spacing: .12em; }
+        .ct-proof-title { color: #15324a; font-size: 1rem; font-weight: 800; margin: .55rem 0 .35rem; }
+        .ct-proof-copy { color: #60717e; font-size: .86rem; line-height: 1.55; }
+        .ct-protocol {
+          display: flex; align-items: center; justify-content: center; gap: .8rem; flex-wrap: wrap;
+          padding: .9rem 1rem; margin-bottom: 1.45rem; border-radius: 14px;
+          color: #244158; background: #eef7f5; border: 1px solid #d4e8e3;
+          font-size: .82rem; font-weight: 750;
+        }
+        .ct-protocol-arrow { color: #0f766e; font-weight: 900; }
         .ct-badge {
           display: inline-block; padding: .24rem .62rem; border-radius: 999px;
           font-size: .72rem; font-weight: 800; letter-spacing: .02em; margin-right: .35rem;
@@ -141,6 +181,10 @@ def _inject_styles() -> None:
         [data-testid="stMetric"] { background: rgba(255,255,255,.78); border: 1px solid #e1e9eb; padding: .8rem 1rem; border-radius: 14px; }
         [data-testid="stFileUploader"] { border: 1px dashed #9dbab5; border-radius: 16px; padding: .35rem; background: rgba(255,255,255,.62); }
         div[data-testid="stExpander"] { border-color: #dbe5e7; border-radius: 14px; background: rgba(255,255,255,.72); }
+        @media (max-width: 760px) {
+          .ct-proof-grid { grid-template-columns: 1fr; }
+          .ct-proof-card { min-height: auto; }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -376,7 +420,7 @@ def _render_report(report: ClaimTraceReport) -> None:
     with map_tab:
         st.caption(
             "All page numbers and excerpts in this table come from local PDF parsing. "
-            "Relationship labels come from GPT-5.6."
+            f"Relationship labels come from {report.model}."
         )
         rows = _evidence_rows(report)
         if rows:
@@ -429,14 +473,42 @@ def main() -> None:
     st.markdown(
         """
         <section class="ct-hero">
-          <div class="ct-kicker">Biomedical claim provenance</div>
-          <div class="ct-title">ClaimTrace</div>
+          <div class="ct-kicker">Evidence-grounded paper audit</div>
+          <div class="ct-title">Every AI claim must show its work.</div>
           <p class="ct-subtitle">
-            Turn a research paper into an auditable map of claims, supporting passages,
-            figures, tables, methods, statistics, and evidence gaps — with every paper
-            excerpt anchored to its original PDF page.
+            Most PDF tools summarize. ClaimTrace cross-examines: it maps each major
+            scientific claim to exact, locally recovered paper passages, grades the
+            evidence relationship, and exposes the gaps that fluent prose can hide.
           </p>
+          <div class="ct-hero-tags">
+            <span class="ct-hero-tag">No model-generated quotations</span>
+            <span class="ct-hero-tag">Exact PDF page anchors</span>
+            <span class="ct-hero-tag">Fail-closed citation checks</span>
+          </div>
         </section>
+        <section class="ct-proof-grid">
+          <div class="ct-proof-card">
+            <div class="ct-proof-number">01 · SOURCE LOCK</div>
+            <div class="ct-proof-title">The model never writes the displayed quote.</div>
+            <div class="ct-proof-copy">It may return only opaque source IDs. ClaimTrace restores every excerpt and page number from the local PDF index.</div>
+          </div>
+          <div class="ct-proof-card">
+            <div class="ct-proof-number">02 · FAIL CLOSED</div>
+            <div class="ct-proof-title">A fake citation cannot quietly reach the UI.</div>
+            <div class="ct-proof-copy">Unknown IDs and inconsistent evidence relationships reject the report instead of being repaired or hidden.</div>
+          </div>
+          <div class="ct-proof-card">
+            <div class="ct-proof-number">03 · AUDIT, NOT SUMMARY</div>
+            <div class="ct-proof-title">See support and limitations side by side.</div>
+            <div class="ct-proof-copy">Direct, indirect, partial, or unsupported—plus missing controls, overclaiming, statistics, and reproducibility flags.</div>
+          </div>
+        </section>
+        <div class="ct-protocol">
+          <span>PDF parsed locally</span><span class="ct-protocol-arrow">→</span>
+          <span>Model returns source IDs</span><span class="ct-protocol-arrow">→</span>
+          <span>App rehydrates exact evidence</span><span class="ct-protocol-arrow">→</span>
+          <span>Invalid links reject the report</span>
+        </div>
         """,
         unsafe_allow_html=True,
     )
@@ -446,7 +518,22 @@ def main() -> None:
         st.caption("Trace the claim. Inspect the evidence.")
         st.divider()
         st.markdown("**Analysis engine**")
-        st.code("gpt-5.6", language=None)
+        default_model, valid_default_model = _default_model_setting()
+        if not valid_default_model:
+            st.warning(
+                "CLAIMTRACE_DEFAULT_MODEL is not allowlisted; using GPT-5.6 Sol."
+            )
+        selected_model = st.selectbox(
+            "OpenAI model",
+            options=[option.model_id for option in MODEL_OPTIONS],
+            index=[option.model_id for option in MODEL_OPTIONS].index(default_model),
+            format_func=lambda model_id: get_model_option(model_id).label,
+            help="Models are allowlisted in application code; arbitrary IDs are rejected.",
+        )
+        selected_model_option = get_model_option(selected_model)
+        st.caption(
+            f"**{selected_model_option.tier}.** {selected_model_option.description}"
+        )
         configured_key = _configured_secret("OPENAI_API_KEY")
         entered_key = st.text_input(
             "OpenAI API key",
@@ -489,11 +576,12 @@ def main() -> None:
     with action_col:
         st.markdown("#### Run")
         analyze_clicked = st.button(
-            "Analyze with GPT-5.6",
+            f"Analyze with {selected_model_option.label}",
             type="primary",
             width="stretch",
         )
-        sample_clicked = st.button("Load synthetic sample", width="stretch")
+        sample_clicked = st.button("Try the 60-second evidence demo", width="stretch")
+        st.caption("Synthetic, no key, and no API call.")
         if "report" in st.session_state:
             if st.button("Clear current report", width="stretch"):
                 del st.session_state["report"]
@@ -538,6 +626,7 @@ def main() -> None:
                             seen_messages.add(message)
 
                     config = AnalysisConfig(
+                        model=selected_model,
                         reasoning_effort=reasoning_effort,
                         max_claims=max_claims,
                         max_paper_characters=_integer_setting(

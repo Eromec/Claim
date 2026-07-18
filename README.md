@@ -1,15 +1,32 @@
 # ClaimTrace
 
-ClaimTrace is a hackathon-ready Streamlit MVP that turns a searchable biomedical
-paper into an interactive, auditable claim–evidence report. It identifies major
-scientific claims, links each one to page-preserved paper spans, classifies the
-strength of the claim–evidence relationship, and flags common interpretation and
-reproducibility risks.
+**Most paper tools summarize. ClaimTrace makes every AI claim show its work.**
 
-The central design rule is simple: **GPT-5.6 never supplies the displayed paper
-excerpt or page number.** PyMuPDF extracts those locally, assigns immutable source
-IDs, and ClaimTrace accepts a model citation only if that ID resolves back to the
-uploaded paper.
+ClaimTrace turns a searchable biomedical paper into an interactive claim–evidence
+audit. It identifies major scientific claims, links each one to page-preserved
+paper spans, classifies the strength of the relationship, and flags interpretation
+and reproducibility risks.
+
+The central design rule is simple: **the analysis model never supplies the displayed
+paper excerpt or page number.** PyMuPDF extracts those locally, assigns immutable
+source IDs, and ClaimTrace accepts a model citation only if that ID resolves back
+to the uploaded paper.
+
+## Why it is different
+
+1. **Source-locked citations.** The model may return only opaque source IDs. Every
+   displayed quote, page number, and bounding box is restored from the local PDF
+   index—not copied from model prose.
+2. **Fail-closed trust boundary.** An unknown source ID or inconsistent relationship
+   rejects the report. ClaimTrace does not silently repair, hide, or invent evidence.
+3. **Audit, not summary.** Each claim is labeled `direct`, `indirect`, `partial`, or
+   `unsupported`, then checked for overclaiming, controls, causal language,
+   statistics, reproducibility, and generalizability.
+
+```text
+PDF parsed locally → model returns source IDs → app restores exact passages
+                                         ↘ invalid link → reject the report
+```
 
 > ClaimTrace is a research-reading aid, not peer review, clinical guidance, or a
 > substitute for inspecting the complete paper and supplementary materials.
@@ -20,8 +37,8 @@ uploaded paper.
 - Extracts text blocks with one-based PDF page numbers and bounding boxes.
 - Heuristically labels paragraphs, figure captions, table text, methods, and
   statistical-result spans.
-- Uses GPT-5.6 to extract a configurable number of major claims.
-- Uses GPT-5.6 again to link evidence, apply a `direct` / `indirect` / `partial` /
+- Uses the selected GPT-5.6 model to extract a configurable number of major claims.
+- Uses the same model again to link evidence, apply a `direct` / `indirect` / `partial` /
   `unsupported` verdict, and audit each claim.
 - Flags overclaiming, missing controls, causal overinterpretation,
   reproducibility limitations, statistical-reporting gaps, and generalizability.
@@ -40,8 +57,8 @@ uploaded paper.
 flowchart TD
     A["PDF upload"] --> B["PyMuPDF page parser"]
     B --> C["Immutable source registry"]
-    C --> D["GPT-5.6 claim extraction"]
-    C --> E["GPT-5.6 evidence audit"]
+    C --> D["Selected model: claim extraction"]
+    C --> E["Selected model: evidence audit"]
     D --> E
     E --> F["Local ID + semantic validation"]
     F -->|consistent| G["Local excerpt hydration"]
@@ -51,22 +68,35 @@ flowchart TD
 
 The application makes two model calls for a typical paper:
 
-1. **Claim extraction.** GPT-5.6 receives the source registry and returns a
+1. **Claim extraction.** The selected model receives the source registry and returns a
    `ClaimExtractionOutput` Pydantic object. A claim contains a faithful
    model-generated restatement plus source IDs pointing to where the authors state
    it.
-2. **Evidence assessment.** GPT-5.6 receives the candidate claims and the same
+2. **Evidence assessment.** The same model receives the candidate claims and the
    source registry, then returns `ClaimAssessmentOutput`: evidence source IDs,
    relationship labels, caveats, alternative interpretations, and audit flags.
 
 Both calls use the OpenAI **Responses API**, `responses.parse`, and a Pydantic
-`text_format`. The application is pinned to the API alias `gpt-5.6`; reasoning
-effort is explicit and defaults to `medium`. `store=False` is set on each request.
+`text_format`. The application exposes only an allowlisted GPT-5.6 family catalog;
+reasoning effort is explicit and defaults to `medium`. `store=False` is set on each
+request.
 OpenAI recommends the Responses API for new direct model requests and Structured
 Outputs when model text must conform to a schema:
 
 - [Responses/text generation guide](https://developers.openai.com/api/docs/guides/text)
 - [Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs)
+
+### Model choices
+
+| Model | Product role | Best for |
+| --- | --- | --- |
+| `gpt-5.6-sol` | Best evidence judgment (default) | Difficult papers and subtle caveats |
+| `gpt-5.6-terra` | Balanced | Routine analysis with a quality/cost/latency balance |
+| `gpt-5.6-luna` | Fastest | High-volume screening and faster turnaround |
+
+The browser never accepts an arbitrary model ID. UI labels and server-side
+validation share the catalog in `claimtrace/model_catalog.py`. The roles follow
+OpenAI's current [GPT-5.6 model guidance](https://developers.openai.com/api/docs/guides/latest-model).
 
 Structured Outputs enforce the JSON shape, but they do **not** prove that a cited
 source exists or supports a claim. `claimtrace/report_builder.py` therefore applies
@@ -164,9 +194,9 @@ The same tests can be run with pytest:
 pytest -q
 ```
 
-Both runners currently discover the same 20 tests. Relative to the original
-12-test baseline, eight tests were added: seven semantic-consistency tests and
-one privacy-preserving `safety_identifier` test.
+Both runners currently discover the same 23 tests. Coverage has expanded beyond
+the original 12-test baseline to include semantic consistency, privacy-preserving
+`safety_identifier` behavior, allowlisted model routing, and model-picker UI state.
 
 Coverage includes:
 
@@ -175,6 +205,7 @@ Coverage includes:
 - rejection of non-PDF and image-only/no-OCR inputs;
 - Pydantic Structured Output validation;
 - a mocked two-stage GPT pipeline with the same Responses/Structured Output contract;
+- allowlisted Sol/Terra/Luna routing and model-picker interaction;
 - rejection of unknown model-generated source IDs;
 - rejection of inconsistent relationship/evidence combinations and duplicate links;
 - proof that displayed excerpts are hydrated only from the local source registry;
@@ -239,7 +270,8 @@ The repository's `.gitignore` explicitly excludes `.env`,
 
 | Variable | Default | Purpose |
 | --- | ---: | --- |
-| `OPENAI_API_KEY` | — | Required for live GPT-5.6 analysis |
+| `OPENAI_API_KEY` | — | Required for live analysis |
+| `CLAIMTRACE_DEFAULT_MODEL` | `gpt-5.6-sol` | Allowlisted model selected when the app opens |
 | `CLAIMTRACE_MAX_PAPER_CHARS` | `500000` | Fail-closed prompt-size budget before any API call |
 | `CLAIMTRACE_API_TIMEOUT_SECONDS` | `240` | Timeout for each of the two model requests |
 
@@ -258,7 +290,7 @@ following installed versions:
 | --- | ---: |
 | Python | `3.12.13` |
 | Streamlit | `1.59.2` |
-| OpenAI Python SDK | `2.45.0` |
+| OpenAI Python SDK | `2.46.0` |
 | httpx | `0.28.1` |
 | PyMuPDF | `1.28.0` |
 | Pydantic | `2.13.4` |
@@ -278,6 +310,7 @@ ClaimTrace/
 ├── claimtrace/
 │   ├── analyzer.py                # Two-stage GPT-5.6 Responses pipeline
 │   ├── exceptions.py              # Safe domain errors
+│   ├── model_catalog.py            # Allowlisted model IDs and product roles
 │   ├── models.py                  # Structured Output and report schemas
 │   ├── pdf_parser.py              # Page-preserving PyMuPDF extraction
 │   ├── prompts.py                 # Conservative provenance prompts
